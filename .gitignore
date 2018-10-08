@@ -1,0 +1,9 @@
+*.o
+*.a
+*.so
+*.d
+*.Tsymbols
+*.gcda
+*.gcno
+tb_defs_unit_test_main
+tb_defs_unit_test_minimal
