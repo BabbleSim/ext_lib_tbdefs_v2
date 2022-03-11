@@ -1,5 +1,5 @@
 /**
- * Copyright 2017-2018 Oticon A/S
+ * Copyright 2017-2022 Oticon A/S
  * SPDX-License-Identifier: MIT
  *
  * This file is a derivative of a work licensed to Oticon A/S under the
@@ -50,8 +50,11 @@ void test_sub_func_in_same_file(TB_CONTEXT_PARAM)
 void test_tick(bs_time_t HW_device_time)
 {
     TB_CHECKPOINT_SEQ(
+        // TB_ASSERT test
+        {0,0},
+
         // WAIT test
-        {0,0}, {1e6,1}, {1e6,2}, {5e6,3},
+        {0,1}, {1e6,2}, {1e6,3}, {5e6,4},
 
         // WAIT_UNTIL test
         {5e6,10}, {10e6,11},
@@ -78,6 +81,9 @@ void test_tick(bs_time_t HW_device_time)
         // WAIT_COND_W_DEADLINE[_DELTA] test
         {121e6,60}, {122e6,61}, {122.5e6,62}, {123e6,63},
 
+        // WAIT_COND_ASSERT test
+        {126e6,70}, {126.5e6,71},
+
         // CALL/RETURN test
         {130e6,500}, {131e6,501}, {131e6,70},
         {131e6,500}, {132e6,501}, {132e6,71},
@@ -91,14 +97,21 @@ void test_tick(bs_time_t HW_device_time)
 
     TB_BEGIN
 
-    TB_TEST_STEP("WAIT test");
+    TB_TEST_STEP("TB_ASSERT test");
+    TB_ASSERT(true, "Value %d", 123);
+    tb_defs_unit_test_expect_fatal_error(TB_PRINT_PREFIX "TB_ASSERT failed: Value 123\n");
+    TB_ASSERT(false, "Value %d", 123);
+    tb_defs_unit_test_check_no_pending_fatal_error();
     TB_CHECKPOINT(0);
-    TB_WAIT(1e6);
+
+    TB_TEST_STEP("WAIT test");
     TB_CHECKPOINT(1);
-    TB_WAIT(0);
+    TB_WAIT(1e6);
     TB_CHECKPOINT(2);
-    TB_WAIT(4e6);
+    TB_WAIT(0);
     TB_CHECKPOINT(3);
+    TB_WAIT(4e6);
+    TB_CHECKPOINT(4);
 
     TB_TEST_STEP("WAIT_UNTIL test");
     TB_WAIT_UNTIL(5e6);
@@ -297,6 +310,19 @@ void test_tick(bs_time_t HW_device_time)
     event1 = false;
     TB_WAIT_COND_W_DEADLINE_DELTA(event1, 5e6);
     TB_CHECKPOINT(63);
+
+    TB_WAIT_UNTIL(125e6);
+    TB_TEST_STEP("WAIT_COND_ASSERT test");
+    event1 = false;
+    tb_defs_unit_test_expect_fatal_error(TB_PRINT_PREFIX "TB_ASSERT failed: TB_WAIT_COND_ASSERT failed: Event1 didn't occur\n");
+    TB_WAIT_COND_ASSERT(event1, 1e6, "Event%d didn't occur", 1);
+    tb_defs_unit_test_check_no_pending_fatal_error();
+    TB_CHECKPOINT(70);
+    // Set an event to occur during the following WAIT_COND_ASSERT
+    tb_defs_unit_test_schedule_special_event_delta(0.5e6, event1_handler);
+    event1 = false;
+    TB_WAIT_COND_ASSERT(event1, 5e6, "Failure");
+    TB_CHECKPOINT(71);
 
     TB_WAIT_UNTIL(130e6);
     TB_TEST_STEP("CALL test");

@@ -1,5 +1,5 @@
 /**
- * Copyright 2017-2018 Oticon A/S
+ * Copyright 2017-2022 Oticon A/S
  * SPDX-License-Identifier: MIT
  *
  * This file is a derivative of a work licensed to Oticon A/S under the
@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // BabbleSim replacements
@@ -26,11 +25,7 @@ typedef uint64_t bs_time_t;
 #define BASE_TRACE_TIME_PROVIDED 1
 
 #define bs_trace_print(_type, _file, _line, _verbosity, _time_type, _time, _fmt, ...) \
-    { \
-        char strbuf[20]; \
-        fprintf(stderr, "%s: ERROR at line %u: " _fmt, bs_time_to_str(strbuf, (_time)), _line, ##__VA_ARGS__); \
-        exit(1); \
-    }
+    tb_defs_unit_test_fatal_error(_line, _time, _fmt, ##__VA_ARGS__)
 
 #define bs_trace_raw_time(_verbosity, _fmt, ...) \
     { \
@@ -51,5 +46,10 @@ typedef void (*tb_defs_unit_test_event_handler_t)(void);
 
 void tb_defs_unit_test_schedule_special_event_delta(bs_time_t d, tb_defs_unit_test_event_handler_t event_handler);
 void tb_defs_unit_test_scheduler(tb_defs_unit_test_tick_handler_t tick_handler);
+void tb_defs_unit_test_fatal_error(unsigned int caller_line, bs_time_t time, const char *format, ...);
+void tb_defs_unit_test_expect_fatal_error(char *error_msg);
+void _tb_defs_unit_test_check_no_pending_fatal_error(unsigned int caller_line);
+#define tb_defs_unit_test_check_no_pending_fatal_error() \
+    _tb_defs_unit_test_check_no_pending_fatal_error(__LINE__)
 
 #endif // #ifndef TB_DEFS_UNIT_TEST_UTILS_H

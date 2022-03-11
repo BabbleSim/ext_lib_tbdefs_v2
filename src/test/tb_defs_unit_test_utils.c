@@ -1,5 +1,5 @@
 /**
- * Copyright 2017-2018 Oticon A/S
+ * Copyright 2017-2022 Oticon A/S
  * SPDX-License-Identifier: MIT
  *
  * This file is a derivative of a work licensed to Oticon A/S under the
@@ -9,6 +9,8 @@
 
 // This file contains utilities needed for testing tb_defs.h.
 
+#include <string.h>
+#include <stdarg.h>
 #include "tb_defs_unit_test_utils.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,6 +57,7 @@ void bst_ticker_set_next_tick_delta(bs_time_t d)
 
 static bs_time_t tb_defs_unit_test_special_event_time = TIME_NEVER;
 static tb_defs_unit_test_event_handler_t tb_defs_unit_test_event_handler = NULL;
+static char *tb_defs_unit_test_expected_fatal_error = NULL;
 
 void tb_defs_unit_test_schedule_special_event_delta(bs_time_t d, tb_defs_unit_test_event_handler_t event_handler)
 {
@@ -82,5 +85,48 @@ void tb_defs_unit_test_scheduler(tb_defs_unit_test_tick_handler_t tick_handler)
             next_tick_time = TIME_NEVER;
             tick_handler(now);
         }
+    }
+}
+
+void tb_defs_unit_test_fatal_error(unsigned int caller_line, bs_time_t time, const char *format, ...)
+{
+    char strbuf[1024];
+    fprintf(stderr, "%s: ", bs_time_to_str(strbuf, time));
+    va_list variable_args;
+    va_start(variable_args, format);
+    vsprintf(strbuf, format, variable_args);
+    va_end(variable_args);
+    if (tb_defs_unit_test_expected_fatal_error)
+    {
+        if (strcmp(strbuf, tb_defs_unit_test_expected_fatal_error) == 0)
+        {
+            fprintf(stderr, "Error (as expected) at line %u: %s", caller_line, strbuf);
+            tb_defs_unit_test_expected_fatal_error = NULL;
+        }
+        else
+        {
+            fprintf(stderr, "ERROR: Unexpected error at line %u: %sExpected error was: %s", caller_line, strbuf,
+                tb_defs_unit_test_expected_fatal_error);
+            exit(1);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "ERROR at line %u: %s", caller_line, strbuf);
+        exit(1);
+    }
+}
+
+void tb_defs_unit_test_expect_fatal_error(char *error_msg)
+{
+    tb_defs_unit_test_expected_fatal_error = error_msg;
+}
+
+void _tb_defs_unit_test_check_no_pending_fatal_error(unsigned int caller_line)
+{
+    if (tb_defs_unit_test_expected_fatal_error)
+    {
+        tb_defs_unit_test_expected_fatal_error = NULL;
+        tb_defs_unit_test_fatal_error(caller_line, now, "Expected fatal error still pending!\n");
     }
 }

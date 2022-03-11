@@ -1,5 +1,5 @@
 /**
- * Copyright 2017-2018 Oticon A/S
+ * Copyright 2017-2022 Oticon A/S
  * SPDX-License-Identifier: MIT
  *
  * This file is a derivative of a work licensed to Oticon A/S under the
@@ -36,8 +36,8 @@
 // Furthermore, TB_WAIT_UNTIL waits until an absolute time, and TB_WAIT_COND waits for a condition to become true as a
 // result of one or more (non-time-tick) events (the test bench must ensure that event handlers for these events set
 // the appropriate variables which are used in the condition, and call the time tick handler via TB_SIGNAL_EVENT).
-// Two other variants, TB_WAIT_COND_W_DEADLINE and TB_WAIT_COND_W_DEADLINE_DELTA, wait for either a condition to become
-// true OR a certain absolute/relative time to occur/elapse, whichever happens first.
+// Three other variants, TB_WAIT_COND_W_DEADLINE, TB_WAIT_COND_W_DEADLINE_DELTA, and TB_WAIT_COND_ASSERT wait for either
+// a condition to become true OR a certain absolute/relative time to occur/elapse, whichever happens first.
 //
 // Usage examples can be found in the tb_defs_unit_test_main.c file which tests all these definitions.
 //
@@ -250,6 +250,24 @@ typedef struct
     { \
         if (!(_cond) && (tm_get_hw_time() < tb_context_ptr->waiting_deadline)) \
             return; \
+        tb_context_ptr->waiting_deadline = TIME_NEVER; \
+        bst_ticker_set_next_tick_absolute(TIME_NEVER); \
+        tb_context_ptr->is_waiting_for_cond = false;
+
+// TB_WAIT_COND_ASSERT waits for the specified condition to occur, and, if the condition doesn't occur within the
+// specified max delay, prints the specified printf-style formatted error message, and terminates the test with status
+// failed.
+#define TB_WAIT_COND_ASSERT(_cond, _max_delay, _fmt_str, ...) \
+        bst_ticker_set_next_tick_delta(_max_delay); \
+        tb_context_ptr->waiting_deadline = _max_delay + tm_get_hw_time(); \
+        tb_context_ptr->is_waiting_for_cond = true; \
+        tb_next_line = __LINE__; \
+    } \
+    if (tb_next_line == __LINE__) \
+    { \
+        if (!(_cond) && (tm_get_hw_time() < tb_context_ptr->waiting_deadline)) \
+            return; \
+        TB_ASSERT(_cond, "TB_WAIT_COND_ASSERT failed: " _fmt_str, ## __VA_ARGS__); \
         tb_context_ptr->waiting_deadline = TIME_NEVER; \
         bst_ticker_set_next_tick_absolute(TIME_NEVER); \
         tb_context_ptr->is_waiting_for_cond = false;
